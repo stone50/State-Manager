@@ -143,11 +143,11 @@ public class StateManager
     /// <returns>
     /// false if the given state does not exits, otherwise true
     /// </returns>
-    public void SetState(string state)
+    public bool SetState(string state)
     {
         if (!states.ContainsKey(state))
         {
-            return;
+            return false;
         }
 
         string previousState = _currentState;
@@ -155,6 +155,8 @@ public class StateManager
         stateChanged.Invoke(this, new StateChangedEventArgs(state, previousState));
         states[previousState].changedFrom.Invoke(this, new StateChangedFromEventArgs(state));
         states[state].changedTo.Invoke(this, new StateChangedToEventArgs(previousState));
+
+        return true;
     }
 
     /// <returns>
