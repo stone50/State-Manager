@@ -3,7 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 
 /// <summary>
-/// A class for managing state. It will always contain the "Default" state.
+/// An event-based class for managing state. StateManager instances will always contain a default state.
 /// </summary>
 public class StateManager
 {
