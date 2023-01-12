@@ -1,6 +1,10 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
+/// <summary>
+/// A class for managing state. It will always contain the "Default" state.
+/// </summary>
 public class StateManager
 {
     public class StateChangedEventArgs : EventArgs
@@ -32,7 +36,7 @@ public class StateManager
         }
     }
 
-    class StateEvents
+    public class StateEvents
     {
         public EventHandler<StateChangedToEventArgs> changedTo;
         public EventHandler<StateChangedFromEventArgs> changedFrom;
@@ -43,35 +47,57 @@ public class StateManager
         }
     }
 
-    string _currentState = "Default";
+    const string _defaultState = "Default";
+    public static readonly string defaultState = _defaultState;
+
+    string _currentState = _defaultState;
     public string currentState { get { return _currentState; } set { SetState(value); } }
 
-    Dictionary<string, StateEvents> states = new Dictionary<string, StateEvents>()
+    Dictionary<string, StateEvents> _states = new Dictionary<string, StateEvents>()
     {
-        {"Default", new StateEvents(
+        {_defaultState, new StateEvents(
             new EventHandler<StateChangedToEventArgs>(delegate (object sender, StateChangedToEventArgs args) { }),
             new EventHandler<StateChangedFromEventArgs>(delegate (object sender, StateChangedFromEventArgs args) { })
         )}
     };
 
-    EventHandler<StateChangedEventArgs> stateChanged = new EventHandler<StateChangedEventArgs>(delegate (object sender, StateChangedEventArgs args) { });
+    EventHandler<StateChangedEventArgs> _stateChanged = new EventHandler<StateChangedEventArgs>(delegate (object sender, StateChangedEventArgs args) { });
 
     public StateManager() { }
 
-    public StateManager(IEnumerable<string> initialStates)
+    public StateManager(IEnumerable<string> states, string initialState = _defaultState)
     {
-        foreach (string state in initialStates)
+        foreach (string state in states)
         {
             AddState(state);
         }
+
+        if (_states.ContainsKey(initialState))
+        {
+            _currentState = initialState;
+        }
     }
-    
+
+    public StateManager(IEnumerable<KeyValuePair<string, StateEvents>> states, string initialState = _defaultState) : this(from state in states select state.Key, initialState)
+    {
+        foreach (KeyValuePair<string, StateEvents> state in states)
+        {
+            Bind(state.Key, state.Value.changedFrom);
+            Bind(state.Key, state.Value.changedTo);
+        }
+    }
+
+    public StateManager(EventHandler<StateChangedEventArgs> handler, IEnumerable<KeyValuePair<string, StateEvents>> states = null, string initialState = _defaultState) : this(states ?? Enumerable.Empty<KeyValuePair<string, StateEvents>>(), initialState)
+    {
+        Bind(handler);
+    }
+
     /// <summary>
     /// Binds the given handler to the "State Changed" event
     /// </summary>
     public void Bind(EventHandler<StateChangedEventArgs> handler)
     {
-        stateChanged += handler;
+        _stateChanged += handler;
     }
 
     /// <summary>
@@ -82,12 +108,12 @@ public class StateManager
     /// </returns>
     public bool Bind(string state, EventHandler<StateChangedFromEventArgs> handler)
     {
-        if (!states.ContainsKey(state))
+        if (!_states.ContainsKey(state))
         {
             return false;
         }
 
-        states[state].changedFrom += handler;
+        _states[state].changedFrom += handler;
         return true;
     }
 
@@ -99,12 +125,12 @@ public class StateManager
     /// </returns>
     public bool Bind(string state, EventHandler<StateChangedToEventArgs> handler)
     {
-        if (!states.ContainsKey(state))
+        if (!_states.ContainsKey(state))
         {
             return false;
         }
 
-        states[state].changedTo += handler;
+        _states[state].changedTo += handler;
         return true;
     }
 
@@ -113,7 +139,7 @@ public class StateManager
     /// </summary>
     public void Unbind(EventHandler<StateChangedEventArgs> handler)
     {
-        stateChanged -= handler;
+        _stateChanged -= handler;
     }
 
     /// <summary>
@@ -124,12 +150,12 @@ public class StateManager
     /// </returns>
     public bool Unbind(string state, EventHandler<StateChangedFromEventArgs> handler)
     {
-        if (!states.ContainsKey(state))
+        if (!_states.ContainsKey(state))
         {
             return false;
         }
 
-        states[state].changedFrom -= handler;
+        _states[state].changedFrom -= handler;
         return true;
     }
 
@@ -141,12 +167,12 @@ public class StateManager
     /// </returns>
     public bool Unbind(string state, EventHandler<StateChangedToEventArgs> handler)
     {
-        if (!states.ContainsKey(state))
+        if (!_states.ContainsKey(state))
         {
             return false;
         }
 
-        states[state].changedTo -= handler;
+        _states[state].changedTo -= handler;
         return true;
     }
 
@@ -155,16 +181,16 @@ public class StateManager
     /// </returns>
     public bool SetState(string state)
     {
-        if (!states.ContainsKey(state))
+        if (!_states.ContainsKey(state))
         {
             return false;
         }
 
         string previousState = _currentState;
         _currentState = state;
-        stateChanged.Invoke(this, new StateChangedEventArgs(state, previousState));
-        states[previousState].changedFrom.Invoke(this, new StateChangedFromEventArgs(state));
-        states[state].changedTo.Invoke(this, new StateChangedToEventArgs(previousState));
+        _stateChanged.Invoke(this, new StateChangedEventArgs(state, previousState));
+        _states[previousState].changedFrom.Invoke(this, new StateChangedFromEventArgs(state));
+        _states[state].changedTo.Invoke(this, new StateChangedToEventArgs(previousState));
 
         return true;
     }
@@ -174,12 +200,12 @@ public class StateManager
     /// </returns>
     public bool AddState(string state)
     {
-        if (states.ContainsKey(state))
+        if (_states.ContainsKey(state))
         {
             return false;
         }
 
-        states.Add(state, new StateEvents(
+        _states.Add(state, new StateEvents(
             new EventHandler<StateChangedToEventArgs>(delegate { }),
             new EventHandler<StateChangedFromEventArgs>(delegate { })
         ));
@@ -188,30 +214,30 @@ public class StateManager
     }
 
     /// <returns>
-    /// false if the given state is "Default", otherwise true
+    /// false if the given state is the default state, otherwise true
     /// </returns>
     public bool RemoveState(string state)
     {
-        if (state.Equals("Default"))
+        if (state.Equals(_defaultState))
         {
             return false;
         }
 
-        return states.Remove(state);
+        return _states.Remove(state);
     }
 
     public HashSet<string> GetStates()
     {
-        return new HashSet<string>(states.Keys);
+        return new HashSet<string>(_states.Keys);
     }
 
     public int GetStateCount()
     {
-        return states.Count;
+        return _states.Count;
     }
 
     public bool HasState(string state)
     {
-        return states.ContainsKey(state);
+        return _states.ContainsKey(state);
     }
 }
