@@ -1,2 +1,2 @@
 # State Manager
- A simple state manager
+ An event-based state manager
