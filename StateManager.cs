@@ -56,6 +56,16 @@ public class StateManager
 
     EventHandler<StateChangedEventArgs> stateChanged = new EventHandler<StateChangedEventArgs>(delegate (object sender, StateChangedEventArgs args) { });
 
+    public StateManager() { }
+
+    public StateManager(IEnumerable<string> initialStates)
+    {
+        foreach (string state in initialStates)
+        {
+            AddState(state);
+        }
+    }
+    
     /// <summary>
     /// Binds the given handler to the "State Changed" event
     /// </summary>
