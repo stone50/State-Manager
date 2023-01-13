@@ -48,7 +48,7 @@ public class StateManager<T>
     }
 
     T _currentState;
-    public T currentState { get { return _currentState; } set { SetState(value); } }
+    public T currentState { get { return _currentState; } }
 
     Dictionary<T, StateEvents> _states;
     public Dictionary<T, StateEvents> states { get { return _states; } }
@@ -165,7 +165,7 @@ public class StateManager<T>
     /// <returns>
     /// false if the given state does not exits, otherwise true
     /// </returns>
-    public bool SetState(T state)
+    public bool SetState(object sender, T state)
     {
         if (!_states.ContainsKey(state))
         {
@@ -174,9 +174,9 @@ public class StateManager<T>
 
         T previousState = _currentState;
         _currentState = state;
-        _stateChanged.Invoke(this, new StateChangedEventArgs(state, previousState));
-        _states[previousState].changedFrom.Invoke(this, new StateChangedFromEventArgs(state));
-        _states[state].changedTo.Invoke(this, new StateChangedToEventArgs(previousState));
+        _stateChanged.Invoke(sender, new StateChangedEventArgs(state, previousState));
+        _states[previousState].changedFrom.Invoke(sender, new StateChangedFromEventArgs(state));
+        _states[state].changedTo.Invoke(sender, new StateChangedToEventArgs(previousState));
 
         return true;
     }
