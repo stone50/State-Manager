@@ -38,12 +38,15 @@ public class StateManager<T>
 
     public class StateEvents
     {
-        public EventHandler<StateChangedToEventArgs> changedTo;
-        public EventHandler<StateChangedFromEventArgs> changedFrom;
-        public StateEvents(EventHandler<StateChangedToEventArgs> _changedTo = null, EventHandler<StateChangedFromEventArgs> _changedFrom = null)
+        EventHandler<StateChangedToEventArgs> _changedTo;
+        public EventHandler<StateChangedToEventArgs> changedTo { get { return _changedTo; } set { _changedTo = value ?? delegate (object sender, StateChangedToEventArgs args) { }; } }
+        EventHandler<StateChangedFromEventArgs> _changedFrom;
+        public EventHandler<StateChangedFromEventArgs> changedFrom { get { return _changedFrom; } set { _changedFrom = value ?? delegate (object sender, StateChangedFromEventArgs args) { }; } }
+
+        public StateEvents(EventHandler<StateChangedToEventArgs> changedToHandler = null, EventHandler<StateChangedFromEventArgs> changedFromHandler = null)
         {
-            changedTo = _changedTo ?? delegate (object sender, StateChangedToEventArgs args) { };
-            changedFrom = _changedFrom ?? delegate (object sender, StateChangedFromEventArgs args) { };
+            changedTo = changedToHandler;
+            changedFrom = changedFromHandler;
         }
     }
 
@@ -67,7 +70,7 @@ public class StateManager<T>
             throw new ArgumentException("Parameter `initialStates` cannot be empty.", "initialStates");
         }
 
-        _states = initialStates.ToDictionary(s => s.Key, e => e.Value);
+        _states = initialStates.ToDictionary(s => s.Key, e => e.Value ?? new StateEvents());
 
         if (!_states.ContainsKey(state))
         {
