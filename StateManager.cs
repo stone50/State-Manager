@@ -60,6 +60,16 @@ public class StateManager<T>
 
     public StateManager(IEnumerable<KeyValuePair<T, StateEvents>> initialStates, T state, EventHandler<StateChangedEventArgs> handler = null)
     {
+        Init(initialStates, state, handler);
+    }
+
+    public StateManager(IEnumerable<T> initialStates, T state, EventHandler<StateChangedEventArgs> handler = null)
+    {
+        Init(initialStates, state, handler);
+    }
+
+    void Init<S>(IEnumerable<S> initialStates, T state, EventHandler<StateChangedEventArgs> handler)
+    {
         if (initialStates == null)
         {
             throw new ArgumentNullException("initialStates", "Parameter `initialStates` cannot be null.");
@@ -70,7 +80,18 @@ public class StateManager<T>
             throw new ArgumentException("Parameter `initialStates` cannot be empty.", "initialStates");
         }
 
-        _states = initialStates.ToDictionary(s => s.Key, e => e.Value ?? new StateEvents());
+        if (typeof(S) == typeof(T))
+        {
+            _states = (initialStates as IEnumerable<T>).ToDictionary(s => s, e => new StateEvents());
+        }
+        else if (typeof(S) == typeof(KeyValuePair<T, StateEvents>))
+        {
+            _states = (initialStates as IEnumerable<KeyValuePair<T, StateEvents>>).ToDictionary(s => s.Key, e => e.Value ?? new StateEvents());
+        }
+        else
+        {
+            throw new ArgumentException("Parameter `initialStates` must be of type IEnumerable<T> or IEnumerable<KeyValuePair<T, StateEvents>>.", "initialStates");
+        }
 
         if (!_states.ContainsKey(state))
         {
@@ -187,17 +208,14 @@ public class StateManager<T>
     /// <returns>
     /// false if the given state already exits, otherwise true
     /// </returns>
-    public bool AddState(T state)
+    public bool AddState(T state, StateEvents events = null)
     {
         if (_states.ContainsKey(state))
         {
             return false;
         }
 
-        _states.Add(state, new StateEvents(
-            new EventHandler<StateChangedToEventArgs>(delegate { }),
-            new EventHandler<StateChangedFromEventArgs>(delegate { })
-        ));
+        _states.Add(state, events ?? new StateEvents());
 
         return true;
     }
