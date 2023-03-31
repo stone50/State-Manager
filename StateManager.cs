@@ -9,10 +9,12 @@ public class StateManager<T>
 {
     public class StateChangedEventArgs : EventArgs
     {
+        public object changedObject;
         public T newState;
         public T previousState;
-        public StateChangedEventArgs(T _newState, T _previousState)
+        public StateChangedEventArgs(object _changedObject, T _newState, T _previousState)
         {
+            changedObject = _changedObject;
             newState = _newState;
             previousState = _previousState;
         }
@@ -20,18 +22,22 @@ public class StateManager<T>
 
     public class StateChangedFromEventArgs : EventArgs
     {
+        public object changedObject;
         public T newState;
-        public StateChangedFromEventArgs(T _newState)
+        public StateChangedFromEventArgs(object _changedObject, T _newState)
         {
+            changedObject = _changedObject;
             newState = _newState;
         }
     }
 
     public class StateChangedToEventArgs : EventArgs
     {
+        public object changedObject;
         public T previousState;
-        public StateChangedToEventArgs(T _previousState)
+        public StateChangedToEventArgs(object _changedObject, T _previousState)
         {
+            changedObject = _changedObject;
             previousState = _previousState;
         }
     }
@@ -50,6 +56,8 @@ public class StateManager<T>
         }
     }
 
+    object _changedObject;
+
     T _currentState;
     public T currentState { get { return _currentState; } }
 
@@ -58,17 +66,27 @@ public class StateManager<T>
 
     EventHandler<StateChangedEventArgs> _stateChanged;
 
-    public StateManager(IEnumerable<KeyValuePair<T, StateEvents>> initialStates, T state, EventHandler<StateChangedEventArgs> handler = null)
+    public StateManager(object changedObject, T state, EventHandler<StateChangedEventArgs> handler = null)
     {
-        Init(initialStates, state, handler);
+        if (!typeof(T).IsEnum)
+        {
+            throw new ArgumentNullException("initialStates", "Parameter `initialStates` must be included if the type parameter is not an enum.");
+        }
+
+        Init(changedObject, (T[])Enum.GetValues(typeof(T)), state, handler);
     }
 
-    public StateManager(IEnumerable<T> initialStates, T state, EventHandler<StateChangedEventArgs> handler = null)
+    public StateManager(object changedObject, IEnumerable<KeyValuePair<T, StateEvents>> initialStates, T state, EventHandler<StateChangedEventArgs> handler = null)
     {
-        Init(initialStates, state, handler);
+        Init(changedObject, initialStates, state, handler);
     }
 
-    void Init<S>(IEnumerable<S> initialStates, T state, EventHandler<StateChangedEventArgs> handler)
+    public StateManager(object changedObject, IEnumerable<T> initialStates, T state, EventHandler<StateChangedEventArgs> handler = null)
+    {
+        Init(changedObject, initialStates, state, handler);
+    }
+
+    void Init<S>(object changedObject, IEnumerable<S> initialStates, T state, EventHandler<StateChangedEventArgs> handler)
     {
         if (initialStates == null)
         {
@@ -98,6 +116,7 @@ public class StateManager<T>
             throw new ArgumentOutOfRangeException("state", "Parameter `state` must be an element of `initialStates`.");
         }
 
+        _changedObject = changedObject;
         _currentState = state;
         _stateChanged = handler ?? delegate (object sender, StateChangedEventArgs args) { };
     }
@@ -198,9 +217,9 @@ public class StateManager<T>
 
         T previousState = _currentState;
         _currentState = state;
-        _stateChanged.Invoke(sender, new StateChangedEventArgs(state, previousState));
-        _states[previousState].changedFrom.Invoke(sender, new StateChangedFromEventArgs(state));
-        _states[state].changedTo.Invoke(sender, new StateChangedToEventArgs(previousState));
+        _stateChanged.Invoke(sender, new StateChangedEventArgs(_changedObject, state, previousState));
+        _states[previousState].changedFrom.Invoke(sender, new StateChangedFromEventArgs(_changedObject, state));
+        _states[state].changedTo.Invoke(sender, new StateChangedToEventArgs(_changedObject, previousState));
 
         return true;
     }
